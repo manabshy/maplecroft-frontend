@@ -3,22 +3,9 @@ import { HttpClient } from '@angular/common/http';
 import * as d3 from 'd3';
 import { event as d3Event } from 'd3-selection';
 import * as R from 'ramda';
+import { DataAccessService } from './data-access.service';
+import { ThrowStmt } from '@angular/compiler';
 
-function getScoreColour(score: number | null, defaultColor = 'LightGray') {
-    if (R.isNil(score) || Number.isNaN(score) || score > 10) {
-        return defaultColor;
-    }
-    if (score <= 2.5) {
-        return '#ce181f';
-    }
-    if (score <= 5) {
-        return '#f47721';
-    }
-    if (score <= 7.5) {
-        return '#ffc709';
-    }
-    return '#d6e040';
-}
 
 
 
@@ -27,17 +14,19 @@ function getScoreColour(score: number | null, defaultColor = 'LightGray') {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent {
+export class AppComponent  {
   title = 'globe-demo';
 
   private countryData;
   public countryDetails: string | undefined;
 
-  constructor(private readonly http: HttpClient) {
-    this.http.get<any>('./assets/data.json').subscribe(x => {
-      this.countryData = x;
+  constructor(private service: DataAccessService) {
+    this.service.data$.subscribe(res => {
+      this.countryData = res
+      console.log(this.countryData)
       this.loadGlobe();
     })
+
   }
 
   private loadGlobe() {
@@ -100,7 +89,7 @@ export class AppComponent {
         .enter().append('path')
         .attr('class', (d: any) => 'country_' + d.properties.ISO_A2)
         .attr('d', path)
-        .attr('fill', (d: any) => getScoreColour(this.getCountryScore(d.properties.ISO_A2)))
+        .attr('fill', (d: any) => this.getScoreColour(this.getCountryScore(d.properties.ISO_A2)))
         .style('stroke', 'black')
         .style('stroke-width', 0.3)
         .on('mouseleave', (d: any) => this.clearDetails())
@@ -111,7 +100,7 @@ export class AppComponent {
 
   private getCountryScore(countryCode: string): number | undefined {
     const country = this.countryData[countryCode];
-    return country ? country.score : undefined;
+    return (country && country.entitled) ? country?.score : 'Not Available';
   }
 
   private clearDetails() {
@@ -119,11 +108,36 @@ export class AppComponent {
   }
 
   private showDetails(countryCode: string, countryName: string) {
-    const country = this.countryData[countryCode];
+    let country_code = countryCode;
+    if (countryName === 'France') {
+      country_code = 'FR'
+    }
+    else if (countryName === 'Norway') {
+      country_code = 'NA'
+    }
+    const country = this.countryData[country_code] ;
     if (!country) {
       this.countryDetails = undefined;
       return;
     }
-    this.countryDetails = `${countryName}: ${country.score.toFixed(2)}`;
+    if ( country && country.entitled)
+    this.countryDetails = `${countryName}: ${country.score?.toFixed(2)}`;
   }
+
+  getScoreColour(score: number | null, defaultColor = 'LightGray') {
+    if (R.isNil(score) || Number.isNaN(score) || score > 10) {
+        return defaultColor;
+    }
+    if (score <= 2.5) {
+        return '#ce181f';
+    }
+    if (score <= 5) {
+        return '#f47721';
+    }
+    if (score <= 7.5) {
+        return '#ffc709';
+    }
+    return '#d6e040';
+}
+
 }
